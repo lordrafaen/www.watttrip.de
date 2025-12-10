@@ -1,0 +1,780 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fahrwiderstands- & Verbrauchsrechner (EV & Verbrenner)</title>
+  <style>
+    :root {
+      --bg:#0f172a; --panel:#111827; --accent:#22d3ee; --accent-2:#a78bfa;
+      --text:#e5e7eb; --muted:#94a3b8; --ev:#06b6d4; --ice:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;padding:24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans","Helvetica Neue",Arial;
+         background:radial-gradient(1200px 600px at 10% 10%,#0b1220 0%,var(--bg) 35%,#0b1220 100%);color:var(--text)}
+    h1{margin:0 0 12px;font-size:1.6rem;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(34,211,238,.1);
+           color:var(--accent);border:1px solid rgba(34,211,238,.25);font-size:.8rem}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .btn{background:#0b1220;color:#dbeafe;border:1px solid #334155;padding:8px 10px;border-radius:8px;cursor:pointer}
+    .btn:hover{border-color:#22d3ee;color:#22d3ee}
+    .select{background:#0b1220;color:#dbeafe;border:1px solid #334155;padding:8px 10px;border-radius:8px}
+    .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+    @media (max-width:1080px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--panel);border:1px solid #1f2937;border-radius:12px;padding:16px;box-shadow:0 0 0 1px rgba(34,211,238,.08),0 10px 30px rgba(0,0,0,.35)}
+    .inputs{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .inputs .wide{grid-column:1/-1}
+    label{display:block;font-size:.88rem;color:var(--muted);margin-bottom:6px}
+    input[type="number"], select{
+      width:100%;padding:10px 12px;border-radius:10px;border:1px solid #374151;background:#0b1220;color:var(--text);
+      outline:none;box-shadow:inset 0 0 0 1px rgba(167,139,250,.15)
+    }
+    input[type="number"]:focus, select:focus{border-color:#22d3ee;box-shadow:0 0 0 2px rgba(34,211,238,.25)}
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .kpi{background:#0b1220;border:1px dashed #334155;padding:12px;border-radius:10px}
+    .kpi .label{font-size:.78rem;color:var(--muted)}
+    .kpi .value{font-size:1.1rem;font-variant-numeric:tabular-nums}
+    .cons-box{margin-bottom:10px;padding:12px;border-radius:10px;border:1px solid #334155;background:#0b1220}
+    .cons-title{font-size:.92rem;margin-bottom:6px;color:#cbd5e1}
+    .cons-value{font-size:1.6rem;font-weight:700;letter-spacing:.2px}
+    .cons-ev{color:var(--ev)} .cons-ice{color:var(--ice)}
+    .cons-sub{font-size:.82rem;color:#9aa9bb;margin-top:4px}
+    canvas{width:100%;height:380px;background:#0b1220;border-radius:12px;border:1px solid #334155}
+    .footer{margin-top:10px;font-size:.8rem;color:var(--muted)}
+    .two-col{display:flex;gap:6px} .two-col>div{flex:1}
+    .pill{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid #374151;margin-left:6px}
+  </style>
+</head>
+<body>
+  <h1>
+    <span id="title">Fahrwiderstands‑ & Verbrauchsrechner</span>
+    <span class="toolbar">
+      <select id="langSel" class="select" title="Language">
+        <option value="auto">🌐 Auto</option>
+        <option value="zh">中文 (简体)</option>
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="bn">বাংলা</option>
+        <option value="pt">Português</option>
+        <option value="ru">Русский</option>
+        <option value="ja">日本語</option>
+        <option value="de">Deutsch</option>
+        <option value="ko">한국어</option>
+      </select>
+      <button class="btn" id="exportBtn" title="HTML als Base64-Data-URI kopieren">Export (Base64‑Data‑URI)</button>
+      <span class="badge" id="badge">EV &amp; ICE</span>
+    </span>
+  </h1>
+
+  <div class="grid">
+    <!-- Eingaben -->
+    <div class="card">
+      <div class="inputs">
+        <div class="wide">
+          <label id="lblKlasse">Fahrzeugklasse (Voreinstellungen)</label>
+          <select id="klasse">
+            <option value="kompakt" data-i18n="class.compact">Kompaktklasse (EV) – Standard</option>
+            <option value="klein" data-i18n="class.small">Kleinwagen (EV)</option>
+            <option value="mittel" data-i18n="class.mid">Mittelklasse (EV)</option>
+            <option value="suv" data-i18n="class.suv">SUV (EV)</option>
+            <option value="transporter" data-i18n="class.van">Transporter (EV)</option>
+            <option value="sport" data-i18n="class.sport">Sportwagen (EV)</option>
+            <option value="custom" data-i18n="class.custom">Benutzerdefiniert</option>
+          </select>
+        </div>
+
+        <div>
+          <label id="lblAntriebsart">Antriebsart / Kraftstoff</label>
+          <select id="antriebArt">
+            <option value="ev" data-i18n="drivetype.ev">Elektrofahrzeug</option>
+            <option value="benzin" data-i18n="drivetype.gas">Verbrenner – Benzin</option>
+            <option value="diesel" data-i18n="drivetype.diesel">Verbrenner – Diesel</option>
+          </select>
+        </div>
+
+        <div>
+          <label id="lblDrivetrain">Antriebskonfiguration</label>
+          <select id="drivetrain">
+            <option value="2wd" data-i18n="drivetrain.2wd">2WD (η = 0,92)</option>
+            <option value="4wd" data-i18n="drivetrain.4wd">4WD (η = 0,88)</option>
+          </select>
+        </div>
+
+        <div>
+          <label id="lblCw">cw‑Wert</label>
+          <input type="number" id="cw" step="0.01" min="0.1" max="1.0" />
+        </div>
+
+        <div>
+          <label id="lblA">Stirnfläche A [m²]</label>
+          <input type="number" id="A" step="0.01" min="1.0" max="5.0" />
+        </div>
+
+        <div>
+          <label id="lblV">Geschwindigkeit v [km/h]</label>
+          <input type="number" id="v" step="1" min="1" max="300" />
+        </div>
+
+        <div>
+          <label id="lblVmax">Höchstgeschwindigkeit [km/h]</label>
+          <input type="number" id="vmax" step="1" min="80" max="300" />
+        </div>
+
+        <div>
+          <label id="lblMleer">Fahrzeugmasse leer [kg]</label>
+          <input type="number" id="mLeer" step="10" min="500" max="4000" />
+        </div>
+
+        <div>
+          <label id="lblNpers">Anzahl Personen</label>
+          <input type="number" id="nPers" step="1" min="0" max="9" />
+        </div>
+
+        <div>
+          <label id="lblStyle">Fahrweise (Stil‑Faktor)</label>
+          <select id="fStyle">
+            <option value="1.00" data-i18n="style.eco">Eco / Ruhig (×1,00)</option>
+            <option value="1.10" data-i18n="style.normal">Normal (×1,10)</option>
+            <option value="1.25" data-i18n="style.sport">Sportlich (×1,25)</option>
+          </select>
+        </div>
+
+        <div>
+          <label id="lblTraffic">Verkehrssituation (Verbrauchsfaktor)</label>
+          <select id="fTraffic">
+            <option value="1.00" data-i18n="traffic.free">freie Fahrt (Urlaubsfahrt) – ×1,00</option>
+            <option value="1.05" data-i18n="traffic.low">wenig Verkehr – ×1,05</option>
+            <option value="1.15" data-i18n="traffic.mid">mittlerer Verkehr – ×1,15</option>
+            <option value="1.35" data-i18n="traffic.high">hoher Verkehr – ×1,35</option>
+            <option value="1.70" data-i18n="traffic.jam">Stau / Stop‑and‑Go – ×1,70</option>
+          </select>
+        </div>
+      </div>
+      <p class="footer" id="hintTraffic">
+        Verkehrsfaktor ist eine grobe pauschale Korrektur für Stop‑and‑Go, Brems‑/Beschleunigungsanteil, Tempowechsel etc. Die Fahrweise wirkt zusätzlich als Stil‑Faktor.
+      </p>
+    </div>
+
+    <!-- Ergebnisse & Diagramm -->
+    <div class="card">
+      <!-- Hervorgehobener Verbrauch -->
+      <div class="cons-box">
+        <div id="consEV" style="display:none;">
+          <div class="cons-title" id="evTitle">Verbrauch (EV, mit Verkehr + Fahrweise)</div>
+          <div class="cons-value cons-ev" id="evConsCorr">–</div>
+          <div class="cons-sub">
+            <span id="evBaseLabel">Basis ohne Faktoren:</span> <span id="evConsBase">–</span><br/>
+            <span id="evFuelEqLabel">Kraftstoff‑Äquivalent (η=18%):</span>
+            <span id="evAsBenzin">–</span> · <span id="evAsDiesel">–</span>
+          </div>
+        </div>
+        <div id="consICE" style="display:none;">
+          <div class="cons-title" id="iceTitle">Verbrauch (mit Verkehr + Fahrweise)</div>
+          <div class="cons-value cons-ice" id="iceConsCorr">–</div>
+          <div class="cons-sub">
+            <span id="iceEvEqLabel">EV‑Äquivalent (mit Faktoren):</span> <span id="iceAsEV">–</span><br/>
+            <span id="iceBaseText">Basis ohne Faktoren:</span> <span id="iceConsBase">–</span> · <span id="iceChemLabel">chemisch:</span> <span id="iceChemCorr">–</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label" id="kpiMass">Gesamtmasse m<sub>gesamt</sub> [kg]</div><div class="value" id="mGesOut">–</div></div>
+        <div class="kpi"><div class="label" id="kpiAir">Luftwiderstand F<sub>Luft</sub> [N]</div><div class="value" id="fLuftOut">–</div></div>
+        <div class="kpi"><div class="label" id="kpiRoll">Rollwiderstand F<sub>Roll</sub> [N]</div><div class="value" id="fRollOut">–</div></div>
+        <div class="kpi"><div class="label" id="kpiTotal">Gesamt F<sub>ges</sub> [N]</div><div class="value" id="fGesOut">–</div></div>
+        <div class="kpi"><div class="label" id="kpiPrad">Radleistung P<sub>Rad</sub> [kW]</div><div class="value" id="pRadOut">–</div></div>
+        <div class="kpi"><div class="label" id="kpiPmot">Motorleistung P<sub>Motor</sub> [kW]</div><div class="value" id="pMotorOut">–</div></div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="two-col">
+          <div>
+            <span class="pill" id="bpText">Betriebspunkt: –</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <canvas id="chart" width="800" height="380"></canvas>
+      </div>
+
+      <div class="footer">
+        <p id="footEV">EV: Berechnung berücksichtigt nur Fahrwiderstände und Antriebsstrangverluste (keine Nebenverbraucher, Rekuperation, Temperatur etc.).</p>
+        <p id="footICE">Verbrenner: Berechnung basiert auf pauschalem Wirkungsgrad η = 18 % (grobe Näherung). Verkehrsfaktoren sind pauschale Schätzwerte und ersetzen keine detaillierte Fahrprofil‑Simulation.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===================== I18N: Sprachpakete ===================== */
+    const I18N = {
+      // Schlüssel: ui.title, ui.badge, labels..., units.kWh100, units.l100
+      de: {
+        ui:{title:"Fahrwiderstands‑ & Verbrauchsrechner", badge:"EV & ICE", export:"Export (Base64‑Data‑URI)", copied:"Kopiert ✓", copyFail:"Kopieren fehlgeschlagen. Data‑URI wird angezeigt:\n"},
+        class:{label:"Fahrzeugklasse (Voreinstellungen)", small:"Kleinwagen (EV)", compact:"Kompaktklasse (EV) – Standard", mid:"Mittelklasse (EV)", suv:"SUV (EV)", van:"Transporter (EV)", sport:"Sportwagen (EV)", custom:"Benutzerdefiniert"},
+        drivetype:{label:"Antriebsart / Kraftstoff", ev:"Elektrofahrzeug", gas:"Verbrenner – Benzin", diesel:"Verbrenner – Diesel"},
+        drivetrain:{label:"Antriebskonfiguration", "2wd":"2WD (η = 0,92)","4wd":"4WD (η = 0,88)"},
+        fields:{
+          cw:"cw‑Wert", area:"Stirnfläche A [m²]", v:"Geschwindigkeit v [km/h]", vmax:"Höchstgeschwindigkeit [km/h]",
+          m:"Fahrzeugmasse leer [kg]", n:"Anzahl Personen", style:"Fahrweise (Stil‑Faktor)",
+          traffic:"Verkehrssituation (Verbrauchsfaktor)"
+        },
+        style:{eco:"Eco / Ruhig (×1,00)", normal:"Normal (×1,10)", sport:"Sportlich (×1,25)"},
+        traffic:{hint:"Verkehrsfaktor ist eine grobe pauschale Korrektur für Stop‑and‑Go, Brems‑/Beschleunigungsanteil, Tempowechsel etc. Die Fahrweise wirkt zusätzlich als Stil‑Faktor.",
+                 free:"freie Fahrt (Urlaubsfahrt) – ×1,00", low:"wenig Verkehr – ×1,05", mid:"mittlerer Verkehr – ×1,15", high:"hoher Verkehr – ×1,35", jam:"Stau / Stop‑and‑Go – ×1,70"},
+        kpi:{mass:"Gesamtmasse m\u209F [kg]", air:"Luftwiderstand F\u2097 [N]", roll:"Rollwiderstand F\u209A [N]", total:"Gesamt F\u2091 [N]", prad:"Radleistung P\u209A [kW]", pmot:"Motorleistung P\u2098 [kW]"},
+        cons:{
+          evTitle:"Verbrauch (EV, mit Verkehr + Fahrweise)", evBase:"Basis ohne Faktoren:", fuelEq:"Kraftstoff‑Äquivalent (η=18%):",
+          iceTitle:"Verbrauch (mit Verkehr + Fahrweise)", iceBase:"Basis ohne Faktoren:", chem:"chemisch:", evEq:"EV‑Äquivalent (mit Faktoren):"
+        },
+        bp:(v,p)=>`Betriebspunkt: ${v} km/h — P = ${p} kW`,
+        chart:{x:"Geschwindigkeit v [km/h]", y:"Motorleistung P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: Berechnung berücksichtigt nur Fahrwiderstände und Antriebsstrangverluste (keine Nebenverbraucher, Rekuperation, Temperatur etc.).",
+              ice:"Verbrenner: Berechnung basiert auf pauschalem Wirkungsgrad η = 18 % (grobe Näherung). Verkehrsfaktoren sind pauschale Schätzwerte und ersetzen keine detaillierte Fahrprofil‑Simulation."},
+        units:{kWh100:"kWh/100 km", l100:"l/100 km", chem:"kWh/100 km"}
+      },
+      en: {
+        ui:{title:"Road Load & Consumption Calculator", badge:"EV & ICE", export:"Export (Base64 Data‑URI)", copied:"Copied ✓", copyFail:"Copy failed. Showing Data‑URI:\n"},
+        class:{label:"Vehicle class (presets)", small:"City car (EV)", compact:"Compact (EV) – default", mid:"Midsize (EV)", suv:"SUV (EV)", van:"Van (EV)", sport:"Sports car (EV)", custom:"Custom"},
+        drivetype:{label:"Powertrain / Fuel", ev:"Electric vehicle", gas:"ICE – Gasoline", diesel:"ICE – Diesel"},
+        drivetrain:{label:"Drivetrain", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"Drag coefficient (cd)", area:"Frontal area A [m²]", v:"Speed v [km/h]", vmax:"Top speed [km/h]",
+                m:"Curb mass [kg]", n:"Occupants", style:"Driving style (factor)", traffic:"Traffic (consumption factor)"},
+        style:{eco:"Eco / Calm (×1.00)", normal:"Normal (×1.10)", sport:"Sporty (×1.25)"},
+        traffic:{hint:"Traffic factor is a coarse correction for stop‑and‑go, accelerations, speed variation etc. Driving style adds an extra factor.",
+                 free:"free flow (holiday) – ×1.00", low:"light traffic – ×1.05", mid:"moderate traffic – ×1.15", high:"heavy traffic – ×1.35", jam:"congestion / stop‑and‑go – ×1.70"},
+        kpi:{mass:"Total mass m\u209F [kg]", air:"Aerodynamic drag F\u2097 [N]", roll:"Rolling resistance F\u209A [N]", total:"Total force F\u2091 [N]", prad:"Wheel power P\u209A [kW]", pmot:"Motor power P\u2098 [kW]"},
+        cons:{evTitle:"Consumption (EV, with traffic + style)", evBase:"Base (no factors):", fuelEq:"Fuel equivalent (η=18%):",
+              iceTitle:"Consumption (with traffic + style)", iceBase:"Base (no factors):", chem:"chemical:", evEq:"EV equivalent (with factors):"},
+        bp:(v,p)=>`Operating point: ${v} km/h — P = ${p} kW`,
+        chart:{x:"Speed v [km/h]", y:"Motor power P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: Only road loads and drivetrain losses (no auxiliaries, no recuperation, no temperature effects).",
+              ice:"ICE: Fixed efficiency η = 18% (coarse approximation). Traffic factors are rough estimates and not a drive‑cycle simulation."},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      es: {
+        ui:{title:"Calculadora de resistencias & consumo", badge:"EV & ICE", export:"Exportar (Data‑URI Base64)", copied:"¡Copiado ✓!", copyFail:"Error al copiar. Mostrando Data‑URI:\n"},
+        class:{label:"Clase de vehículo (presets)", small:"Ciudad (EV)", compact:"Compacto (EV) – por defecto", mid:"Mediano (EV)", suv:"SUV (EV)", van:"Furgón (EV)", sport:"Deportivo (EV)", custom:"Personalizado"},
+        drivetype:{label:"Motorización / Combustible", ev:"Vehículo eléctrico", gas:"ICE – Gasolina", diesel:"ICE – Diésel"},
+        drivetrain:{label:"Tracción", "2wd":"2WD (η = 0,92)","4wd":"4WD (η = 0,88)"},
+        fields:{cw:"Coeficiente aerodinámico (cd)", area:"Área frontal A [m²]", v:"Velocidad v [km/h]", vmax:"Velocidad máx. [km/h]",
+                m:"Masa en vacío [kg]", n:"Personas", style:"Estilo de conducción (factor)", traffic:"Tráfico (factor consumo)"},
+        style:{eco:"Eco / Tranquilo (×1,00)", normal:"Normal (×1,10)", sport:"Deportivo (×1,25)"},
+        traffic:{hint:"El factor de tráfico corrige de forma aproximada el stop‑and‑go, aceleraciones y variaciones de velocidad. El estilo añade otro factor.",
+                 free:"fluido (vacaciones) – ×1,00", low:"poco tráfico – ×1,05", mid:"tráfico medio – ×1,15", high:"tráfico denso – ×1,35", jam:"atasco / stop‑and‑go – ×1,70"},
+        kpi:{mass:"Masa total m\u209F [kg]", air:"Arrastre F\u2097 [N]", roll:"Rodadura F\u209A [N]", total:"Fuerza total F\u2091 [N]", prad:"Potencia a rueda P\u209A [kW]", pmot:"Potencia motor P\u2098 [kW]"},
+        cons:{evTitle:"Consumo (EV, con tráfico + estilo)", evBase:"Base (sin factores):", fuelEq:"Equivalente combustible (η=18%):",
+              iceTitle:"Consumo (con tráfico + estilo)", iceBase:"Base (sin factores):", chem:"químico:", evEq:"Equivalente EV (con factores):"},
+        bp:(v,p)=>`Punto de operación: ${v} km/h — P = ${p} kW`,
+        chart:{x:"Velocidad v [km/h]", y:"Potencia motor P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: Solo resistencias y pérdidas del tren motriz (sin auxiliares, ni regeneración, ni temperatura).",
+              ice:"ICE: Eficiencia fija η = 18% (aprox.). Los factores de tráfico son estimaciones y no un ciclo de conducción."},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      hi: {
+        ui:{title:"रोड लोड व खपत कैलकुलेटर", badge:"EV & ICE", export:"निर्यात (Base64 Data‑URI)", copied:"कॉपी हुआ ✓", copyFail:"कॉपी असफल। Data‑URI:\n"},
+        class:{label:"वाहन वर्ग (प्रीसेट)", small:"सिटी कार (EV)", compact:"कम्पैक्ट (EV) – डिफ़ॉल्ट", mid:"मिड‑साइज़ (EV)", suv:"SUV (EV)", van:"वैन (EV)", sport:"स्पोर्ट्स (EV)", custom:"कस्टम"},
+        drivetype:{label:"पावरट्रेन / ईंधन", ev:"इलेक्ट्रिक वाहन", gas:"ICE – पेट्रोल", diesel:"ICE – डीज़ल"},
+        drivetrain:{label:"ड्राइवट्रेन", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"ड्रैग गुणांक (cd)", area:"फ्रंट एरिया A [m²]", v:"गति v [km/h]", vmax:"अधिकतम गति [km/h]",
+                m:"वाहन द्रव्यमान [kg]", n:"व्यक्तियों की संख्या", style:"ड्राइविंग स्टाइल (फैक्टर)", traffic:"ट्रैफिक (खपत फैक्टर)"},
+        style:{eco:"इको / शांत (×1.00)", normal:"नॉर्मल (×1.10)", sport:"स्पोर्टी (×1.25)"},
+        traffic:{hint:"ट्रैफिक फैक्टर स्टॉप‑एंड‑गो, त्वरक/ब्रेक व गति परिवर्तन का मोटा सुधार है। स्टाइल फैक्टर अतिरिक्त है।",
+                 free:"खुली सड़क – ×1.00", low:"कम ट्रैफिक – ×1.05", mid:"मध्यम ट्रैफिक – ×1.15", high:"भारी ट्रैफिक – ×1.35", jam:"जाम / स्टॉप‑एंड‑गो – ×1.70"},
+        kpi:{mass:"कुल द्रव्यमान m\u209F [kg]", air:"वायुगतिक बल F\u2097 [N]", roll:"रोलिंग रेसिस्टेंस F\u209A [N]", total:"कुल बल F\u2091 [N]", prad:"व्हील पावर P\u209A [kW]", pmot:"मोटर पावर P\u2098 [kW]"},
+        cons:{evTitle:"खपत (EV, ट्रैफिक + स्टाइल सहित)", evBase:"बेस (बिना फैक्टर):", fuelEq:"ईंधन समकक्ष (η=18%):",
+              iceTitle:"खपत (ट्रैफिक + स्टाइल सहित)", iceBase:"बेस (बिना फैक्टर):", chem:"रासायनिक:", evEq:"EV समकक्ष (फैक्टर सहित):"},
+        bp:(v,p)=>`ऑपरेटिंग पॉइंट: ${v} km/h — P = ${p} kW`,
+        chart:{x:"गति v [km/h]", y:"मोटर पावर P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: केवल रोड लोड व ड्राइवट्रेन हानि (कोई सहायक लोड/रीजन/ताप प्रभाव नहीं)।",
+              ice:"ICE: स्थिर दक्षता η = 18% (अनुमानित)। ट्रैफिक फैक्टर मोटे अनुमान हैं।"},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      bn: {
+        ui:{title:"রোড লোড ও খরচ ক্যালকুলেটর", badge:"EV & ICE", export:"রপ্তানি (Base64 Data‑URI)", copied:"কপি হয়েছে ✓", copyFail:"কপি ব্যর্থ। Data‑URI:\n"},
+        class:{label:"গাড়ির শ্রেণি (প্রিসেট)", small:"সিটি কার (EV)", compact:"কমপ্যাক্ট (EV) – ডিফল্ট", mid:"মিডসাইজ (EV)", suv:"SUV (EV)", van:"ভ্যান (EV)", sport:"স্পোর্টস (EV)", custom:"কাস্টম"},
+        drivetype:{label:"পাওয়ারট্রেন / জ্বালানি", ev:"ইলেকট্রিক ভেহিকল", gas:"ICE – পেট্রোল", diesel:"ICE – ডিজেল"},
+        drivetrain:{label:"ড্রাইভট্রেন", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"ড্র্যাগ সহগ (cd)", area:"সামনের ক্ষেত্রফল A [m²]", v:"গতি v [km/h]", vmax:"সর্বোচ্চ গতি [km/h]",
+                m:"গাড়ির ভর [kg]", n:"মানুষের সংখ্যা", style:"ড্রাইভিং স্টাইল (ফ্যাক্টর)", traffic:"ট্রাফিক (খরচ ফ্যাক্টর)"},
+        style:{eco:"ইকো / শান্ত (×1.00)", normal:"নরমাল (×1.10)", sport:"স্পোর্টি (×1.25)"},
+        traffic:{hint:"ট্রাফিক ফ্যাক্টর মোটামুটি স্টপ‑অ্যান্ড‑গো, ত্বরণ/ব্রেক ও গতি পরিবর্তনের সংশোধন। স্টাইল ফ্যাক্টর আলাদা।",
+                 free:"ফ্রি ফ্লো – ×1.00", low:"কম ট্রাফিক – ×1.05", mid:"মাঝারি ট্রাফিক – ×1.15", high:"ভারি ট্রাফিক – ×1.35", jam:"জ্যাম / স্টপ‑অ্যান্ড‑গো – ×1.70"},
+        kpi:{mass:"মোট ভর m\u209F [kg]", air:"এয়ার ড্র্যাগ F\u2097 [N]", roll:"রোলিং রেজিস্ট্যান্স F\u209A [N]", total:"মোট বল F\u2091 [N]", prad:"চাকা শক্তি P\u209A [kW]", pmot:"মোটর শক্তি P\u2098 [kW]"},
+        cons:{evTitle:"খরচ (EV, ট্রাফিক + স্টাইল সহ)", evBase:"বেস (ফ্যাক্টর ছাড়া):", fuelEq:"জ্বালানি সমতুল্য (η=18%):",
+              iceTitle:"খরচ (ট্রাফিক + স্টাইল সহ)", iceBase:"বেস (ফ্যাক্টর ছাড়া):", chem:"রাসায়নিক:", evEq:"EV সমতুল্য (ফ্যাক্টরসহ):"},
+        bp:(v,p)=>`অপারেটিং পয়েন্ট: ${v} km/h — P = ${p} kW`,
+        chart:{x:"গতি v [km/h]", y:"মোটর শক্তি P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: কেবল রাস্তার লোড ও ড্রাইভট্রেন ক্ষতি (অক্সিলিয়ারি/রিজেন/তাপ নেই)।",
+              ice:"ICE: স্থির দক্ষতা η = 18% (আনুমানিক)। ট্রাফিক ফ্যাক্টর অনুমাননির্ভর।"},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      pt: {
+        ui:{title:"Calculadora de resistência & consumo", badge:"EV & ICE", export:"Exportar (Data‑URI Base64)", copied:"Copiado ✓", copyFail:"Falha ao copiar. Data‑URI:\n"},
+        class:{label:"Classe do veículo (presets)", small:"Citadino (EV)", compact:"Compacto (EV) – padrão", mid:"Médio (EV)", suv:"SUV (EV)", van:"Furgão (EV)", sport:"Esportivo (EV)", custom:"Personalizado"},
+        drivetype:{label:"Trem de força / Combustível", ev:"Veículo elétrico", gas:"ICE – Gasolina", diesel:"ICE – Diesel"},
+        drivetrain:{label:"Tração", "2wd":"2WD (η = 0,92)","4wd":"4WD (η = 0,88)"},
+        fields:{cw:"Coef. aerodinâmico (cd)", area:"Área frontal A [m²]", v:"Velocidade v [km/h]", vmax:"Vel. máxima [km/h]",
+                m:"Massa do veículo [kg]", n:"Pessoas", style:"Estilo de condução (fator)", traffic:"Tráfego (fator de consumo)"},
+        style:{eco:"Eco / Calmo (×1,00)", normal:"Normal (×1,10)", sport:"Esportivo (×1,25)"},
+        traffic:{hint:"O fator de tráfego corrige grosseiramente stop‑and‑go, acelerações e variações de velocidade. O estilo adiciona outro fator.",
+                 free:"fluxo livre – ×1,00", low:"tráfego leve – ×1,05", mid:"tráfego médio – ×1,15", high:"tráfego intenso – ×1,35", jam:"engarrafamento – ×1,70"},
+        kpi:{mass:"Massa total m\u209F [kg]", air:"Arrasto F\u2097 [N]", roll:"Rolamento F\u209A [N]", total:"Força total F\u2091 [N]", prad:"Potência na roda P\u209A [kW]", pmot:"Potência do motor P\u2098 [kW]"},
+        cons:{evTitle:"Consumo (EV, com tráfego + estilo)", evBase:"Base (sem fatores):", fuelEq:"Equivalente combustível (η=18%):",
+              iceTitle:"Consumo (com tráfego + estilo)", iceBase:"Base (sem fatores):", chem:"químico:", evEq:"Equivalente EV (com fatores):"},
+        bp:(v,p)=>`Ponto de operação: ${v} km/h — P = ${p} kW`,
+        chart:{x:"Velocidade v [km/h]", y:"Potência do motor P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: apenas resistências e perdas do trem de força (sem auxiliares, sem regeneração, sem temperatura).",
+              ice:"ICE: eficiência fixa η = 18% (aproximação). Fatores de tráfego são estimativas."},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      ru: {
+        ui:{title:"Калькулятор сопротивлений и расхода", badge:"EV & ICE", export:"Экспорт (Base64 Data‑URI)", copied:"Скопировано ✓", copyFail:"Не удалось скопировать. Data‑URI:\n"},
+        class:{label:"Класс ТС (пресеты)", small:"Малый (EV)", compact:"Компакт (EV) – по умолчанию", mid:"Средний (EV)", suv:"SUV (EV)", van:"Фургон (EV)", sport:"Спорткар (EV)", custom:"Пользовательский"},
+        drivetype:{label:"Тип привода / Топливо", ev:"Электромобиль", gas:"ДВС – бензин", diesel:"ДВС – дизель"},
+        drivetrain:{label:"Тип привода", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"Коэф. лобового (cd)", area:"Лобовая площадь A [м²]", v:"Скорость v [км/ч]", vmax:"Макс. скорость [км/ч]",
+                m:"Масса авто [кг]", n:"Пассажиров", style:"Стиль вождения (фактор)", traffic:"Трафик (фактор расхода)"},
+        style:{eco:"Эко / Спокойно (×1.00)", normal:"Нормально (×1.10)", sport:"Спортивно (×1.25)"},
+        traffic:{hint:"Фактор трафика грубо учитывает стоп‑энд‑гоу, разгоны, колебания скорости. Стиль добавляет доп. множитель.",
+                 free:"свободно – ×1.00", low:"мало трафика – ×1.05", mid:"средний трафик – ×1.15", high:"плотный – ×1.35", jam:"пробки – ×1.70"},
+        kpi:{mass:"Полная масса m\u209F [кг]", air:"Аэродин. F\u2097 [Н]", roll:"К качению F\u209A [Н]", total:"Суммарная F\u2091 [Н]", prad:"Мощность на колесе P\u209A [кВт]", pmot:"Мощность мотора P\u2098 [кВт]"},
+        cons:{evTitle:"Расход (EV, с трафиком + стилем)", evBase:"База (без факторов):", fuelEq:"Топливный эквивалент (η=18%):",
+              iceTitle:"Расход (с трафиком + стилем)", iceBase:"База (без факторов):", chem:"хим.:", evEq:"Эквивалент EV (с факторами):"},
+        bp:(v,p)=>`Режимная точка: ${v} км/ч — P = ${p} кВт`,
+        chart:{x:"Скорость v [км/ч]", y:"Мощность мотора P [кВт]", tip:(v,p)=>`v=${v} км/ч, P=${p} кВт`},
+        foot:{ev:"EV: только дорожные сопротивления и потери привода (без потребителей, рекуперации, температуры).",
+              ice:"ДВС: фикс. КПД η = 18% (грубое приближение). Факторы трафика – оценка."},
+        units:{kWh100:"кВт·ч/100 км", l100:"л/100 км", chem:"кВт·ч/100 км"}
+      },
+      ja: {
+        ui:{title:"走行抵抗と消費の簡易計算", badge:"EV & ICE", export:"エクスポート (Base64 Data‑URI)", copied:"コピーしました ✓", copyFail:"コピーに失敗。Data‑URI:\n"},
+        class:{label:"車両クラス（プリセット）", small:"シティ (EV)", compact:"コンパクト (EV) – 既定", mid:"ミッドサイズ (EV)", suv:"SUV (EV)", van:"バン (EV)", sport:"スポーツ (EV)", custom:"カスタム"},
+        drivetype:{label:"パワートレイン / 燃料", ev:"電気自動車", gas:"ICE – ガソリン", diesel:"ICE – ディーゼル"},
+        drivetrain:{label:"駆動方式", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"空気抵抗係数 (cd)", area:"前面投影面積 A [m²]", v:"速度 v [km/h]", vmax:"最高速度 [km/h]",
+                m:"車両重量 [kg]", n:"人数", style:"運転スタイル (係数)", traffic:"交通状況 (係数)"},
+        style:{eco:"エコ / 穏やか (×1.00)", normal:"ノーマル (×1.10)", sport:"スポーツ (×1.25)"},
+        traffic:{hint:"交通係数はストップ＆ゴー、加減速、速度変化の粗い補正です。スタイル係数は別に乗算します。",
+                 free:"流れ良好 – ×1.00", low:"やや空き – ×1.05", mid:"普通 – ×1.15", high:"混雑 – ×1.35", jam:"渋滞 / ストップ＆ゴー – ×1.70"},
+        kpi:{mass:"総質量 m\u209F [kg]", air:"空力抵抗 F\u2097 [N]", roll:"転がり抵抗 F\u209A [N]", total:"合力 F\u2091 [N]", prad:"ホイール出力 P\u209A [kW]", pmot:"モーター出力 P\u2098 [kW]"},
+        cons:{evTitle:"消費 (EV、交通 + スタイル込み)", evBase:"基準（係数なし）:", fuelEq:"燃料等価 (η=18%):",
+              iceTitle:"消費 (交通 + スタイル込み)", iceBase:"基準（係数なし）:", chem:"化学:", evEq:"EV等価（係数込み）:"},
+        bp:(v,p)=>`作動点: ${v} km/h — P = ${p} kW`,
+        chart:{x:"速度 v [km/h]", y:"モーター出力 P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: 走行抵抗と駆動損失のみ（補機・回生・温度影響なし）。",
+              ice:"ICE: 効率 η=18%（概算）。交通係数は概算であり、走行サイクルではありません。"},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      ko: {
+        ui:{title:"주행저항·소비 계산기", badge:"EV & ICE", export:"내보내기 (Base64 Data‑URI)", copied:"복사됨 ✓", copyFail:"복사 실패. Data‑URI:\n"},
+        class:{label:"차량 등급 (프리셋)", small:"시티 (EV)", compact:"컴팩트 (EV) – 기본", mid:"중형 (EV)", suv:"SUV (EV)", van:"밴 (EV)", sport:"스포츠 (EV)", custom:"사용자 지정"},
+        drivetype:{label:"파워트레인 / 연료", ev:"전기차", gas:"ICE – 가솔린", diesel:"ICE – 디젤"},
+        drivetrain:{label:"구동", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"공기저항 계수 (cd)", area:"전면면적 A [m²]", v:"속도 v [km/h]", vmax:"최고속도 [km/h]",
+                m:"공차중량 [kg]", n:"인원 수", style:"주행 스타일 (계수)", traffic:"교통상황 (계수)"},
+        style:{eco:"에코 / 안정 (×1.00)", normal:"일반 (×1.10)", sport:"스포티 (×1.25)"},
+        traffic:{hint:"교통계수는 정체·가감속·속도변화를 거칠게 보정합니다. 스타일 계수는 추가로 곱해집니다.",
+                 free:"원활 – ×1.00", low:"한산 – ×1.05", mid:"보통 – ×1.15", high:"혼잡 – ×1.35", jam:"정체 / 스탑앤고 – ×1.70"},
+        kpi:{mass:"총질량 m\u209F [kg]", air:"공력저항 F\u2097 [N]", roll:"구름저항 F\u209A [N]", total:"합력 F\u2091 [N]", prad:"휠 출력 P\u209A [kW]", pmot:"모터 출력 P\u2098 [kW]"},
+        cons:{evTitle:"소비 (EV, 교통 + 스타일 포함)", evBase:"기준 (계수 없음):", fuelEq:"연료 등가 (η=18%):",
+              iceTitle:"소비 (교통 + 스타일 포함)", iceBase:"기준 (계수 없음):", chem:"화학:", evEq:"EV 등가 (계수 포함):"},
+        bp:(v,p)=>`운전점: ${v} km/h — P = ${p} kW`,
+        chart:{x:"속도 v [km/h]", y:"모터 출력 P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV: 주행저항과 구동손실만 고려(보조부하/회생/온도 미포함).",
+              ice:"ICE: 고정 효율 η = 18% (근사). 교통계수는 대략 추정치입니다."},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      },
+      zh: {
+        ui:{title:"行驶阻力与能耗估算器", badge:"EV & ICE", export:"导出 (Base64 Data‑URI)", copied:"已复制 ✓", copyFail:"复制失败。Data‑URI：\n"},
+        class:{label:"车辆类别（预设）", small:"小型车 (EV)", compact:"紧凑型 (EV) – 默认", mid:"中型车 (EV)", suv:"SUV (EV)", van:"厢式车 (EV)", sport:"跑车 (EV)", custom:"自定义"},
+        drivetype:{label:"动力/燃料", ev:"电动汽车", gas:"燃油车 – 汽油", diesel:"燃油车 – 柴油"},
+        drivetrain:{label:"驱动形式", "2wd":"2WD (η = 0.92)","4wd":"4WD (η = 0.88)"},
+        fields:{cw:"风阻系数 (cd)", area:"迎风面积 A [m²]", v:"车速 v [km/h]", vmax:"最高车速 [km/h]",
+                m:"整备质量 [kg]", n:"乘员人数", style:"驾驶风格（系数）", traffic:"交通状况（修正系数）"},
+        style:{eco:"节能 / 平稳 (×1.00)", normal:"正常 (×1.10)", sport:"运动 (×1.25)"},
+        traffic:{hint:"交通系数粗略修正拥堵、起停、加减速与车速波动；驾驶风格系数将额外乘入。",
+                 free:"畅通（度假路况） – ×1.00", low:"较少拥堵 – ×1.05", mid:"中等拥堵 – ×1.15", high:"拥堵 – ×1.35", jam:"严重拥堵/走走停停 – ×1.70"},
+        kpi:{mass:"总质量 m\u209F [kg]", air:"气动力阻力 F\u2097 [N]", roll:"滚动阻力 F\u209A [N]", total:"合力 F\u2091 [N]", prad:"车轮功率 P\u209A [kW]", pmot:"电机/发动机功率 P\u2098 [kW]"},
+        cons:{evTitle:"能耗（EV，含交通与风格系数）", evBase:"基准（不含系数）：", fuelEq:"燃料当量 (η=18%)：",
+              iceTitle:"油耗（含交通与风格系数）", iceBase:"基准（不含系数）：", chem:"化学能：", evEq:"EV 当量（含系数）："},
+        bp:(v,p)=>`工况点：${v} km/h — P = ${p} kW`,
+        chart:{x:"车速 v [km/h]", y:"电机/发动机功率 P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
+        foot:{ev:"EV：仅考虑行驶阻力与传动损耗（不含辅机、能量回收、温度影响等）。",
+              ice:"燃油车：固定效率 η = 18%（粗略近似）。交通系数为经验估计，并非行驶循环仿真。"},
+        units:{kWh100:"kWh/100 km", l100:"L/100 km", chem:"kWh/100 km"}
+      }
+    };
+
+    // 指定各语言用于数字格式化与 <html lang>
+    const LOCALE_MAP = {
+      de:"de-DE", en:"en-US", es:"es-ES", hi:"hi-IN", bn:"bn-BD", pt:"pt-PT", ru:"ru-RU", ja:"ja-JP", ko:"ko-KR", zh:"zh-CN"
+    };
+
+    // 右到左语言（目前无）
+    const RTL = new Set([]);
+
+    /* ===================== Physik-Konstanten & Presets ===================== */
+    const rho = 1.225, c_r = 0.012, g = 9.81;
+    const eta_2wd = 0.92, eta_4wd = 0.88, eta_ice = 0.18;
+    const hv_benzin = 8.9, hv_diesel = 9.8;
+
+    const presets = {
+      klein:      { cw:0.32, A:2.05, m:1400, dt:'2wd', vmax:150 },
+      kompakt:    { cw:0.29, A:2.20, m:1700, dt:'2wd', vmax:160 },
+      mittel:     { cw:0.28, A:2.30, m:1900, dt:'2wd', vmax:180 },
+      suv:        { cw:0.30, A:2.70, m:2200, dt:'4wd', vmax:180 },
+      transporter:{ cw:0.42, A:3.10, m:2600, dt:'2wd', vmax:140 },
+      sport:      { cw:0.25, A:2.00, m:1900, dt:'2wd', vmax:250 },
+      custom: null
+    };
+
+    /* ===================== DOM Refs ===================== */
+    const el = {
+      title:document.getElementById('title'), badge:document.getElementById('badge'),
+      exportBtn:document.getElementById('exportBtn'), langSel:document.getElementById('langSel'),
+      // inputs
+      klasse:document.getElementById('klasse'), antriebArt:document.getElementById('antriebArt'),
+      drivetrain:document.getElementById('drivetrain'), cw:document.getElementById('cw'), A:document.getElementById('A'),
+      v:document.getElementById('v'), vmax:document.getElementById('vmax'), mLeer:document.getElementById('mLeer'),
+      nPers:document.getElementById('nPers'), fStyle:document.getElementById('fStyle'), fTraffic:document.getElementById('fTraffic'),
+      // labels
+      lblKlasse:document.getElementById('lblKlasse'), lblAntriebsart:document.getElementById('lblAntriebsart'),
+      lblDrivetrain:document.getElementById('lblDrivetrain'), lblCw:document.getElementById('lblCw'), lblA:document.getElementById('lblA'),
+      lblV:document.getElementById('lblV'), lblVmax:document.getElementById('lblVmax'), lblMleer:document.getElementById('lblMleer'),
+      lblNpers:document.getElementById('lblNpers'), lblStyle:document.getElementById('lblStyle'), lblTraffic:document.getElementById('lblTraffic'),
+      hintTraffic:document.getElementById('hintTraffic'),
+      // outputs
+      mGesOut:document.getElementById('mGesOut'), fLuftOut:document.getElementById('fLuftOut'),
+      fRollOut:document.getElementById('fRollOut'), fGesOut:document.getElementById('fGesOut'),
+      pRadOut:document.getElementById('pRadOut'), pMotorOut:document.getElementById('pMotorOut'),
+      consEV:document.getElementById('consEV'), evConsCorr:document.getElementById('evConsCorr'),
+      evConsBase:document.getElementById('evConsBase'), evTitle:document.getElementById('evTitle'),
+      evBaseLabel:document.getElementById('evBaseLabel'), evFuelEqLabel:document.getElementById('evFuelEqLabel'),
+      evAsBenzin:document.getElementById('evAsBenzin'), evAsDiesel:document.getElementById('evAsDiesel'),
+      consICE:document.getElementById('consICE'), iceConsCorr:document.getElementById('iceConsCorr'),
+      iceChemCorr:document.getElementById('iceChemCorr'), iceConsBase:document.getElementById('iceConsBase'),
+      iceTitle:document.getElementById('iceTitle'), iceBaseText:document.getElementById('iceBaseText'),
+      iceChemLabel:document.getElementById('iceChemLabel'), iceAsEV:document.getElementById('iceAsEV'),
+      bpText:document.getElementById('bpText'), chart:document.getElementById('chart'),
+      kpiMass:document.getElementById('kpiMass'), kpiAir:document.getElementById('kpiAir'), kpiRoll:document.getElementById('kpiRoll'),
+      kpiTotal:document.getElementById('kpiTotal'), kpiPrad:document.getElementById('kpiPrad'), kpiPmot:document.getElementById('kpiPmot'),
+      footEV:document.getElementById('footEV'), footICE:document.getElementById('footICE')
+    };
+
+    /* ===================== Sprache / i18n Logik ===================== */
+    let currentLang = 'de';
+    let nf = new Intl.NumberFormat(LOCALE_MAP[currentLang], {maximumFractionDigits:2, minimumFractionDigits:2});
+
+    function format(x, d=2){
+      if (!isFinite(x)) return '–';
+      const nfLocal = new Intl.NumberFormat(LOCALE_MAP[currentLang], {maximumFractionDigits:d, minimumFractionDigits:d});
+      return nfLocal.format(x);
+    }
+
+    function applyI18N(lang){
+      const L = I18N[lang] || I18N['en'];
+      currentLang = lang;
+      document.documentElement.lang = lang;
+      document.documentElement.dir = RTL.has(lang) ? 'rtl' : 'ltr';
+      nf = new Intl.NumberFormat(LOCALE_MAP[currentLang], {maximumFractionDigits:2, minimumFractionDigits:2});
+
+      // Top UI
+      el.title.textContent = L.ui.title;
+      el.badge.textContent = L.ui.badge;
+      el.exportBtn.textContent = L.ui.export;
+
+      // Labels
+      el.lblKlasse.textContent = L.class.label;
+      // Klasse options
+      setOptionText(el.klasse, {
+        klein:L.class.small, kompakt:L.class.compact, mittel:L.class.mid, suv:L.class.suv, transporter:L.class.van, sport:L.class.sport, custom:L.class.custom
+      });
+
+      el.lblAntriebsart.textContent = L.drivetype.label;
+      setOptionText(el.antriebArt, {ev:L.drivetype.ev, benzin:L.drivetype.gas, diesel:L.drivetype.diesel});
+
+      el.lblDrivetrain.textContent = L.drivetrain.label;
+      setOptionText(el.drivetrain, {'2wd':L.drivetrain['2wd'], '4wd':L.drivetrain['4wd']});
+
+      el.lblCw.textContent = L.fields.cw;
+      el.lblA.textContent = L.fields.area;
+      el.lblV.textContent = L.fields.v;
+      el.lblVmax.textContent = L.fields.vmax;
+      el.lblMleer.textContent = L.fields.m;
+      el.lblNpers.textContent = L.fields.n;
+
+      el.lblStyle.textContent = L.fields.style;
+      setOptionText(el.fStyle, {"1.00":L.style.eco,"1.10":L.style.normal,"1.25":L.style.sport});
+
+      el.lblTraffic.textContent = L.fields.traffic;
+      el.hintTraffic.textContent = L.traffic.hint;
+      setOptionText(el.fTraffic, {"1.00":L.traffic.free,"1.05":L.traffic.low,"1.15":L.traffic.mid,"1.35":L.traffic.high,"1.70":L.traffic.jam});
+
+      // KPIs
+      el.kpiMass.innerHTML = L.kpi.mass.replace('m\u209F','m<sub>gesamt</sub>');
+      el.kpiAir.innerHTML = L.kpi.air;
+      el.kpiRoll.innerHTML = L.kpi.roll;
+      el.kpiTotal.innerHTML = L.kpi.total;
+      el.kpiPrad.innerHTML = L.kpi.prad;
+      el.kpiPmot.innerHTML = L.kpi.pmot;
+
+      // Consumption boxes
+      el.evTitle.textContent = L.cons.evTitle;
+      el.evBaseLabel.textContent = L.cons.evBase;
+      el.evFuelEqLabel.textContent = L.cons.fuelEq;
+
+      el.iceTitle.textContent = L.cons.iceTitle;
+      el.iceBaseText.textContent = L.cons.iceBase;
+      el.iceChemLabel.textContent = L.cons.chem;
+
+      // Footer
+      el.footEV.textContent = L.foot.ev;
+      el.footICE.textContent = L.foot.ice;
+
+      // Betriebspunkt neu setzen
+      updateBpText();
+      // Diagramm neu beschriften
+      drawChart(lastCompute.cw, lastCompute.A, lastCompute.mLeer, lastCompute.nPers, lastCompute.eta_dt, lastCompute.vmax, lastCompute.v_kmh);
+    }
+
+    function setOptionText(selectEl, mapByValue){
+      [...selectEl.options].forEach(opt=>{
+        const k = opt.value;
+        if (mapByValue[k]) opt.textContent = mapByValue[k];
+      });
+    }
+
+    function detectLanguage(){
+      const nav = (navigator.language || 'en').toLowerCase();
+      const short = nav.split('-')[0];
+      const supported = new Set(Object.keys(I18N));
+      if (supported.has(short)) return short;
+      // map some common fallbacks
+      if (['pt-br','pt-pt'].includes(nav)) return 'pt';
+      if (['zh-cn','zh-sg','zh'].includes(short) || nav.startsWith('zh')) return 'zh';
+      return 'en';
+    }
+
+    /* ===================== Berechnung & Diagramm ===================== */
+    let lastCompute = {cw:0,A:0,mLeer:0,nPers:0,eta_dt:0,vmax:200,v_kmh:100};
+
+    function drivetrainEta(){ return el.drivetrain.value === '4wd' ? eta_4wd : eta_2wd; }
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+    function setPreset(name){
+      const p = presets[name]; if (!p) return;
+      el.cw.value = p.cw; el.A.value = p.A; el.mLeer.value = p.m; el.drivetrain.value = p.dt; el.vmax.value = p.vmax;
+      if (!el.v.value) el.v.value = Math.min(100, p.vmax);
+      compute();
+    }
+
+    function compute(){
+      const cw = parseFloat(el.cw.value);
+      const A = parseFloat(el.A.value);
+      const v_kmh = clamp(parseFloat(el.v.value), 1, 300);
+      const v_ms = v_kmh / 3.6;
+      const vmax = clamp(parseFloat(el.vmax.value), 80, 300);
+      const mLeer = parseFloat(el.mLeer.value);
+      const nPers = parseInt(el.nPers.value || 0);
+      const eta_dt = drivetrainEta();
+      const fTraffic = parseFloat(el.fTraffic.value);
+      const fStyle = parseFloat(el.fStyle.value);
+
+      const mGes = mLeer + 80 * nPers;
+      const fLuft = 0.5 * rho * cw * A * v_ms * v_ms;
+      const fRoll = c_r * mGes * g;
+      const fGes = fLuft + fRoll;
+
+      const pRad_kW = fGes * v_ms / 1000.0;
+      const pMotor_kW = pRad_kW / eta_dt;
+
+      const t_100_h = 100.0 / v_kmh;
+      const e100_base_kWh = pMotor_kW * t_100_h;
+
+      const factorTotal = fTraffic * fStyle;
+
+      // Ausgabe
+      el.mGesOut.textContent = format(mGes,0);
+      el.fLuftOut.textContent = format(fLuft);
+      el.fRollOut.textContent = format(fRoll);
+      el.fGesOut.textContent = format(fGes);
+      el.pRadOut.textContent = format(pRad_kW);
+      el.pMotorOut.textContent = format(pMotor_kW);
+
+      const L = I18N[currentLang] || I18N['en'];
+      if (el.antriebArt.value === 'ev'){
+        el.consICE.style.display = 'none';
+        el.consEV.style.display = 'block';
+        const e100_corr = e100_base_kWh * factorTotal;
+        el.evConsBase.textContent = `${format(e100_base_kWh)} ${L.units.kWh100}`;
+        el.evConsCorr.textContent = `${format(e100_corr)} ${L.units.kWh100}`;
+
+        const eChem_corr = e100_corr / eta_ice;
+        const l100_benzin = eChem_corr / hv_benzin;
+        const l100_diesel = eChem_corr / hv_diesel;
+        el.evAsBenzin.textContent = `${format(l100_benzin)} ${L.units.l100}`;
+        el.evAsDiesel.textContent = `${format(l100_diesel)} ${L.units.l100}`;
+      } else {
+        el.consEV.style.display = 'none';
+        el.consICE.style.display = 'block';
+
+        const hv = (el.antriebArt.value === 'benzin') ? hv_benzin : hv_diesel;
+        const eChem_base = e100_base_kWh / eta_ice;
+        const l100_base  = eChem_base / hv;
+        const eChem_corr = eChem_base * factorTotal;
+        const l100_corr  = l100_base  * factorTotal;
+
+        el.iceConsBase.textContent = `${format(l100_base)} ${L.units.l100}`;
+        el.iceChemCorr.textContent = `${format(eChem_corr)} ${L.units.chem}`;
+        el.iceConsCorr.textContent = `${format(l100_corr)} ${L.units.l100}`;
+
+        const e100_corr = e100_base_kWh * factorTotal;
+        el.iceAsEV.textContent = `${format(e100_corr)} ${L.units.kWh100}`;
+      }
+
+      lastCompute = {cw,A,mLeer,nPers,eta_dt,vmax,v_kmh};
+      updateBpText();
+      drawChart(cw, A, mLeer, nPers, eta_dt, vmax, v_kmh);
+    }
+
+    function updateBpText(){
+      const L = I18N[currentLang] || I18N['en'];
+      el.bpText.textContent = L.bp(format(lastCompute.v_kmh,0), format(lastCompute.eta_dt ? ( ( (0.5*rho*lastCompute.cw*lastCompute.A*Math.pow(lastCompute.v_kmh/3.6,2) + c_r*(lastCompute.mLeer+80*lastCompute.nPers)*g) * (lastCompute.v_kmh/3.6) /1000)/lastCompute.eta_dt) : 0 ));
+    }
+
+    function drawChart(cw, A, mLeer, nPers, eta_dt, vmax, v_kmh){
+      const canvas = el.chart, ctx = canvas.getContext('2d');
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      const pad = {left:60,right:20,top:20,bottom:40};
+      const w = canvas.width - pad.left - pad.right;
+      const h = canvas.height - pad.top - pad.bottom;
+
+      const mGes = mLeer + 80*nPers;
+      const N = Math.max(60, Math.floor(vmax));
+      const xs=[], ys=[]; let yMax = 0;
+
+      for(let i=0;i<=N;i++){
+        const v_kmh_i = i*(vmax/N), v_ms_i = v_kmh_i/3.6;
+        const fLuft_i = 0.5*rho*cw*A*v_ms_i*v_ms_i;
+        const fRoll_i = c_r*mGes*g;
+        const pMotor_i = (fLuft_i + fRoll_i)*v_ms_i/1000.0/eta_dt;
+        xs.push(v_kmh_i); ys.push(pMotor_i); if (pMotor_i>yMax) yMax=pMotor_i;
+      }
+      yMax = Math.max(yMax,20)*1.10;
+
+      function xToPx(x){ return pad.left + (x/vmax)*w; }
+      function yToPx(y){ return pad.top + h - (y/yMax)*h; }
+
+      // Grid
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      const gridX=10, gridY=8;
+      for(let gx=0;gx<=gridX;gx++){ const x=pad.left+(gx/gridX)*w; ctx.moveTo(x,pad.top); ctx.lineTo(x,pad.top+h); }
+      for(let gy=0;gy<=gridY;gy(){ const y=pad.top+(gy/gridY)*h; ctx.moveTo(pad.left,y); ctx.lineTo(pad.left+w,y); }
+      ctx.stroke();
+
+      // Axes
+      ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(pad.left,pad.top+h); ctx.lineTo(pad.left+w,pad.top+h);
+      ctx.moveTo(pad.left,pad.top); ctx.lineTo(pad.left,pad.top+h);
+      ctx.stroke();
+
+      const L = I18N[currentLang] || I18N['en'];
+
+      // Labels
+      ctx.fillStyle = '#94a3b8'; ctx.font = '12px system-ui';
+      ctx.fillText(L.chart.x, pad.left + w/2 - 70, pad.top + h + 28);
+      ctx.save(); ctx.translate(16, pad.top + h/2 + 40); ctx.rotate(-Math.PI/2);
+      ctx.fillText(L.chart.y, 0, 0); ctx.restore();
+
+      // Ticks
+      ctx.fillStyle = '#cbd5e1'; ctx.font = '11px system-ui';
+      for (let gx=0; gx<=10; gx++){
+        const xVal = Math.round((gx/10)*vmax);
+        ctx.fillText(String(xVal), xToPx(xVal)-8, pad.top+h+16);
+      }
+      for (let gy=0; gy<=8; gy++){
+        const yVal = Math.round((gy/8)*yMax);
+        ctx.fillText(String(yVal), pad.left-40, yToPx(yVal)+4);
+      }
+
+      // Curve
+      ctx.strokeStyle = 'rgba(34,211,238,0.9)'; ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (let i=0;i<xs.length;i++){ const x=xToPx(xs[i]), y=yToPx(ys[i]); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+      ctx.stroke();
+
+      // Operating point
+      const v_ms = v_kmh/3.6;
+      const fLuft = 0.5*rho*cw*A*v_ms*v_ms;
+      const fRoll = c_r*(mLeer+80*nPers)*g;
+      const pMotor = (fLuft+fRoll)*v_ms/1000.0/eta_dt;
+      const xPt = xToPx(v_kmh), yPt = yToPx(pMotor);
+
+      ctx.fillStyle = '#a78bfa'; ctx.strokeStyle = '#a78bfa';
+      ctx.beginPath(); ctx.arc(xPt,yPt,4.5,0,Math.PI*2); ctx.fill();
+      ctx.setLineDash([4,4]); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(xPt,pad.top+h); ctx.lineTo(xPt,yPt); ctx.moveTo(pad.left,yPt); ctx.lineTo(xPt,yPt); ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#dbeafe'; ctx.font = '12px system-ui';
+      const tip = L.chart.tip(Math.round(v_kmh), pMotor.toFixed(1));
+      ctx.fillText(tip, Math.min(xPt+10, pad.left+w-140), Math.max(yPt-10, pad.top+16));
+    }
+
+    /* ===================== Events & Export ===================== */
+    ['input','change'].forEach(evt=>{
+      ['klasse','antriebArt','drivetrain','cw','A','v','vmax','mLeer','nPers','fStyle','fTraffic']
+        .forEach(id => document.getElementById(id).addEventListener(evt, compute));
+    });
+    document.getElementById('klasse').addEventListener('change', ()=> setPreset(document.getElementById('klasse').value));
+
+    // Export Base64
+    el.exportBtn.addEventListener('click', ()=>{
+      const L = I18N[currentLang] || I18N['en'];
+      const html = '<!DOCTYPE html>' + document.documentElement.outerHTML;
+      const base64 = btoa(unescape(encodeURIComponent(html)));
+      const uri = 'data:text/html;base64,' + base64;
+      navigator.clipboard.writeText(uri).then(()=>{
+        el.exportBtn.textContent = L.ui.copied;
+        setTimeout(()=> el.exportBtn.textContent = L.ui.export, 1500);
+      }).catch(()=> alert(L.ui.copyFail + uri));
+    });
+
+    // Sprache: Auto/Manuell
+    el.langSel.addEventListener('change', ()=>{
+      const val = el.langSel.value;
+      if (val === 'auto'){
+        const det = detectLanguage(); applyI18N(det);
+      } else {
+        applyI18N(val);
+      }
+      compute();
+    });
+
+    // Init
+    function init(){
+      // Auto language from browser
+      const det = detectLanguage();
+      applyI18N(det);
+      el.langSel.value = 'auto'; // zeigt Auto, setzt dennoch erkannte Sprache
+      // Defaults
+      el.klasse.value = 'kompakt';
+      el.antriebArt.value = (det==='de') ? 'ev' : 'ev';
+      el.nPers.value = 1;
+      el.v.value = 100;
+      el.fTraffic.value = '1.00';
+      el.fStyle.value = '1.10';
+      setPreset('kompakt');
+      compute();
+    }
+    init();
+  </script>
+</body>
+</html>

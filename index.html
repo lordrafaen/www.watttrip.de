@@ -54,9 +54,99 @@
     .pill{display:inline-block;padding:2px 6px;border-radius:999px;border:1px solid #374151;margin-left:6px}
     .ads{display:flex;flex-direction:column;gap:16px}
     .ads .ad{background:#0b1220;border:1px solid #334155;border-radius:12px;padding:8px;text-align:center}
+    
+<style>
+  /* Platz für die Banner am Content lassen */
+  :root{
+    --banner-width: 180px;       /* Breite je Banner (anpassbar) */
+    --banner-gap: 16px;          /* Abstand Banner zum Content */
+  }
+
+  /* Haupt-Wrapper für deinen Seiteninhalt */
+  .page-wrap{
+    max-width: 1200px;           /* optional: Contentbreite */
+    margin: 0 auto;
+    padding-left: calc(var(--banner-width) + var(--banner-gap));
+    padding-right: calc(var(--banner-width) + var(--banner-gap));
+  }
+
+  /* Linker Banner */
+  .side-banner.left {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--banner-width);
+    height: 100vh;               /* volle Viewport-Höhe */
+    display: flex;
+    align-items: stretch;         /* Inhalt über volle Höhe */
+    justify-content: center;
+    padding: 0;
+    background: #f7f7f7;         /* optionaler Hintergrund */
+    border-right: 1px solid #e5e5e5;
+    z-index: 9999;
+  }
+
+  /* Rechter Banner */
+  .side-banner.right {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: var(--banner-width);
+    height: 100vh;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 0;
+    background: #f7f7f7;
+    border-left: 1px solid #e5e5e5;
+    z-index: 9999;
+  }
+
+  /* Wenn du Bilder oder Iframes benutzt, fülle die Höhe */
+  .side-banner .banner-content{
+    width: 100%;
+    height: 100%;
+    overflow: auto;               /* falls Inhalt höher ist */
+  }
+  .side-banner img,
+  .side-banner iframe{
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;            /* Bild skalieren, Höhe füllen */
+    border: 0;
+  }
+
+  /* Mobil / Tablet: Banner ausblenden und Content wieder volle Breite */
+  @media (max-width: 1200px){
+    .side-banner{ display: none; }
+    .page-wrap{
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+  }
+</style>
+
   </style>
 </head>
 <body>
+  
+<!-- Linker Banner -->
+<aside class="side-banner left">
+  <div class="banner-content">
+    <!-- Beispiel: Bild-Banner -->
+    https://beispiel-link-links
+      <img src="https://via.placeholder.com/180x1200?text=Banner+Links" alt!-- Oder: dein vorhandenes Check24-Widget als iframe/Script -->
+  </div>
+</aside>
+
+<!-- Rechter Banner -->
+<aside class="side-banner right">
+  <div class="banner-content">
+    <a href="https://beispiel-link     <img src="https://via.placeholder.com/180x1200?text=Banner+Rechts" alt="Banner rechts!-- Dein eigentlicher Seiteninhalt -->
+<div class="page-wrap">
+  <!-- Hier beginnt dein aktueller HTML-Content (der Rechner etc.) -->
+
   <h1>
     <span id="title">Fahrwiderstands‑ & Verbrauchsrechner</span>
     <span class="toolbar">
@@ -624,3 +714,4 @@
   </script>
 </body>
 </html>
+

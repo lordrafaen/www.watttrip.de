@@ -176,7 +176,7 @@
           <div class="cons-value cons-ev" id="evConsCorr">–</div>
           <div class="cons-sub">
             <span id="evBaseLabel">Basis ohne Faktoren:</span> <span id="evConsBase">–</span><br/>
-            <span id="evFuelEqLabel">Kraftstoff‑Äquivalent (η=18%):</span>
+            <span id="evFuelEqLabel">Kraftstoff‑Äquivalent (η=23%):</span>
             Benzin <span id="evAsBenzin">–</span> · Diesel <span id="evAsDiesel">–</span>
           </div>
         </div>
@@ -214,7 +214,7 @@
 
       <div class="footer">
         <p id="footEV">EV: Berechnung berücksichtigt nur Fahrwiderstände und Antriebsstrangverluste (keine Nebenverbraucher, Rekuperation, Temperatur etc.).</p>
-        <p id="footICE">Verbrenner: Berechnung basiert auf pauschalem Wirkungsgrad η = 18 % (grobe Näherung). Verkehrsfaktoren sind pauschale Schätzwerte und ersetzen keine detaillierte Fahrprofil‑Simulation.</p>
+        <p id="footICE">Verbrenner: Berechnung basiert auf pauschalem Wirkungsgrad η = 23 % (grobe Näherung). Verkehrsfaktoren sind pauschale Schätzwerte und ersetzen keine detaillierte Fahrprofil‑Simulation.</p>
       </div>
     </div>
     </div>
@@ -237,13 +237,13 @@
                  free:"freie Fahrt (Urlaubsfahrt) – ×1,00", low:"wenig Verkehr – ×1,05", mid:"mittlerer Verkehr – ×1,15", high:"hoher Verkehr – ×1,35", jam:"Stau / Stop‑and‑Go – ×1,70"},
         kpi:{mass:"Gesamtmasse m\u209F [kg]", air:"Luftwiderstand F\u2097 [N]", roll:"Rollwiderstand F\u209A [N]", total:"Gesamt F\u2091 [N]", prad:"Radleistung P\u209A [kW]", pmot:"Motorleistung P\u2098 [kW]"},
         cons:{
-          evTitle:"Verbrauch (EV, mit Verkehr + Fahrweise)", evBase:"Basis ohne Faktoren:", fuelEq:"Kraftstoff‑Äquivalent (η=18%):",
+          evTitle:"Verbrauch (EV, mit Verkehr + Fahrweise)", evBase:"Basis ohne Faktoren:", fuelEq:"Kraftstoff‑Äquivalent (η=23%):",
           iceTitle:"Verbrauch (mit Verkehr + Fahrweise)", iceBase:"Basis ohne Faktoren:", chem:"chemisch:", evEq:"EV‑Äquivalent (mit Faktoren):"
         },
         bp:(v,p)=>`Betriebspunkt: ${v} km/h — P = ${p} kW`,
         chart:{x:"Geschwindigkeit v [km/h]", y:"Motorleistung P [kW]", tip:(v,p)=>`v=${v} km/h, P=${p} kW`},
         foot:{ev:"EV: Berechnung berücksichtigt nur Fahrwiderstände und Antriebsstrangverluste (keine Nebenverbraucher, Rekuperation, Temperatur etc.).",
-              ice:"Verbrenner: Berechnung basiert auf pauschalem Wirkungsgrad η = 18 % (grobe Näherung). Verkehrsfaktoren sind pauschale Schätzwerte und ersetzen keine detaillierte Fahrprofil‑Simulation."},
+              ice:"Verbrenner: Berechnung basiert auf pauschalem Wirkungsgrad η = 23 % (grobe Näherung). Verkehrsfaktoren sind pauschale Schätzwerte und ersetzen keine detaillierte Fahrprofil‑Simulation."},
         units:{kWh100:"kWh/100 km", l100:"l/100 km", chem:"kWh/100 km"}
       },
       /* … (weitere Sprachen wie zuvor; zur Kürze hier weggelassen – gleiche Struktur wie vorher) … */
@@ -254,7 +254,7 @@
 
     /* ===================== Physik-Konstanten & Presets ===================== */
     const rho = 1.225, c_r = 0.012, g = 9.81;
-    const eta_2wd = 0.92, eta_4wd = 0.88, eta_ice = 0.18;
+    const eta_2wd = 0.92, eta_4wd = 0.88, eta_ice = 0.23;
     const hv_benzin = 8.9, hv_diesel = 9.8;
 
     const presets = {
@@ -609,4 +609,5 @@
   </script>
 </body>
 </html>
+
 
